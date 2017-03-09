@@ -9,8 +9,8 @@ https://aws.amazon.com/cli/
 Requires a table name, the S3 bucket+folder path to backup to and optionally the number of items per segmented file - do NOT exceed 25.
 
 ``` bash
-# ./dynamodb-dump <table-name> <s3-folder>
-./dynamodb-dump app-users dynamodb-backup/staging
+# ./dynamodb-dump <s3-folder> <table-name>
+./dynamodb-dump dynamodb-backup/staging app-users
 ```
 
 ## dynamodb-restore
