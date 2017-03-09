@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+
+# Prerequisites:
+# install aws cli
+# install jq from https://stedolan.github.io/jq/
+
+TABLE_NAME=${1:?Error: provide the table name as the first argument}
+S3_FOLDER=${2:?Error: provide the S3 path as the third argument}
+NUM_ITEMS=${3:-25}
+
+type aws
+if (($? > 0)); then
+    printf '%s\n' 'No AWS CLI installed' >&2
+    exit 1
+fi
+
+type jq
+if (($? > 0)); then
+    printf '%s\n' 'No jq installed' >&2
+    exit 1
+fi
+
+current_dir=$(pwd)
+
+cd $(mktemp -d)
+
+file_num=0
+next_token=0
+
+dynamo_scan() {
+   result=""
+   
+   if [ -z "$1" ]
+   then
+      result=$(aws dynamodb scan --table-name $TABLE_NAME --max-items $NUM_ITEMS)
+   else
+      result=$(aws dynamodb scan --table-name $TABLE_NAME --max-items $NUM_ITEMS --starting-token $1)
+   fi
+
+   echo $result | jq -c '[{Item: .Items[]} | {PutRequest: .}]' | jq -c "{\"$TABLE_NAME\": .}" > $TABLE_NAME-$file_num
+
+   next_token=$(echo $result | jq .NextToken)
+}
+
+dynamo_scan
+
+while [ "$next_token" != "null" ]; do
+   file_num=$((file_num+1))
+   dynamo_scan $next_token
+done
+
+aws s3 sync . s3://$S3_FOLDER/$(date +%Y-%m-%d-%H-%M-%S)
+
+cd $current_dir

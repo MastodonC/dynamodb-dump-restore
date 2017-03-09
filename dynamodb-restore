@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+# Prerequisites:
+# install aws cli
+
+S3_FOLDER=${1:?Error: provide the S3 path as the third argument}
+
+type aws
+if (($? > 0)); then
+    printf '%s\n' 'No AWS CLI installed' >&2
+    exit 1
+fi
+
+current_dir=$(pwd)
+
+cd $(mktemp -d)
+
+aws s3 sync s3://$S3_FOLDER/ .
+
+ls | xargs -n 1 -I {} aws dynamodb batch-write-item --request-items "file://$(pwd)/{}"
+
+cd $current_dir
