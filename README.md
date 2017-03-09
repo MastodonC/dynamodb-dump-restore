@@ -2,7 +2,7 @@
 A couple of very simple bash scripts designed and export tables from DynamoDB to S3, and back again.
 
 ## Requirements
-https://stedolan.github.io/jq/
+https://stedolan.github.io/jq/  
 https://aws.amazon.com/cli/
 
 ## dynamodb-dump
