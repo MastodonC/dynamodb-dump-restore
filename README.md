@@ -6,11 +6,11 @@ https://stedolan.github.io/jq/
 https://aws.amazon.com/cli/
 
 ## dynamodb-dump
-Requires a table name, the S3 bucket+folder path to backup to and optionally the number of items per segmented file - do NOT exceed 25.
+Requires the S3 bucket+folder path to backup to and n number of table names
 
 ``` bash
-# ./dynamodb-dump <s3-folder> <table-name>
-./dynamodb-dump dynamodb-backup/staging app-users
+# ./dynamodb-dump <s3-folder> <table-name> ...
+./dynamodb-dump dynamodb-backup/staging app-users app-groups app-permissions
 ```
 
 ## dynamodb-restore
