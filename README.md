@@ -1,6 +1,10 @@
 # DynamoDB Dump & Restore
 A couple of very simple bash scripts designed and export tables from DynamoDB to S3, and back again.
 
+## Requirements
+https://stedolan.github.io/jq/
+https://aws.amazon.com/cli/
+
 ## dynamodb-dump
 Requires a table name, the S3 bucket+folder path to backup to and optionally the number of items per segmented file - do NOT exceed 25.
 
