@@ -4,10 +4,9 @@
 # install aws cli
 # install jq from https://stedolan.github.io/jq/
 
-S3_FOLDER=${1:?Error: provide the S3 path as the third argument}
-TABLE_NAME=${2:?Error: provide the table name as the first argument}
+S3_FOLDER=${1:?Error: provide the S3 path as the first argument}
+TABLE_NAME_TEST=${2:?Error: provide at least one table name as the second argument}
 NUM_ITEMS=25
-DATE_OF_RUN=$(date +%Y-%m-%d-%H-%M-%S)
 
 type aws
 if (($? > 0)); then
@@ -25,31 +24,39 @@ current_dir=$(pwd)
 
 cd $(mktemp -d)
 
-file_num=0
-next_token=0
-
 dynamo_scan() {
     result=""
 
-    if [ -z "$1" ]
+    if [ -z "$2" ]
     then
-        result=$(aws dynamodb scan --table-name $TABLE_NAME --max-items $NUM_ITEMS)
+        result=$(aws dynamodb scan --table-name $1 --max-items $NUM_ITEMS)
     else
-        result=$(aws dynamodb scan --table-name $TABLE_NAME --max-items $NUM_ITEMS --starting-token $1)
+        result=$(aws dynamodb scan --table-name $1 --max-items $NUM_ITEMS --starting-token $2)
     fi
 
-    echo $result | jq -c '[{Item: .Items[]} | {PutRequest: .}]' | jq -c "{\"$TABLE_NAME\": .}" > $TABLE_NAME-$file_num
+    echo $result | jq -c '[{Item: .Items[]} | {PutRequest: .}]' | jq -c "{\"$var\": .}" > $var-$file_num
 
     next_token=$(echo $result | jq .NextToken)
 }
 
-dynamo_scan
+arg_num=0
 
-while [ "$next_token" != "null" ]; do
-    file_num=$((file_num+1))
-    dynamo_scan $next_token
+for var in "$@"
+do
+    arg_num=$((arg_num+1))
+    if [ $arg_num -gt 1 ]; then
+        echo "Exporting table $var"
+        file_num=0
+        next_token=0
+        dynamo_scan $var
+
+        while [ "$next_token" != "null" ]; do
+            file_num=$((file_num+1))
+            dynamo_scan $var $next_token
+        done
+    fi
 done
 
-aws s3 sync . s3://$S3_FOLDER/$DATE_OF_RUN
+aws s3 sync . s3://$S3_FOLDER/$(date +%Y-%m-%d-%H-%M-%S)
 
 cd $current_dir
