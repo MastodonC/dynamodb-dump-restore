@@ -6,7 +6,7 @@
 
 S3_FOLDER=${1:?Error: provide the S3 path as the first argument}
 TABLE_NAME_TEST=${2:?Error: provide at least one table name as the second argument}
-NUM_ITEMS=25
+NUM_ITEMS=25 # do not change
 
 type aws
 if (($? > 0)); then
@@ -39,22 +39,17 @@ dynamo_scan() {
     next_token=$(echo $result | jq .NextToken)
 }
 
-arg_num=0
-
-for var in "$@"
+for var in "${@:2}"
 do
-    arg_num=$((arg_num+1))
-    if [ $arg_num -gt 1 ]; then
-        echo "Exporting table $var"
-        file_num=0
-        next_token=0
-        dynamo_scan $var
+    echo "Exporting table $var"
+    file_num=0
+    next_token=0
+    dynamo_scan $var
 
-        while [ "$next_token" != "null" ]; do
-            file_num=$((file_num+1))
-            dynamo_scan $var $next_token
-        done
-    fi
+    while [ "$next_token" != "null" ]; do
+        file_num=$((file_num+1))
+        dynamo_scan $var $next_token
+    done
 done
 
 aws s3 sync . s3://$S3_FOLDER/$(date +%Y-%m-%d-%H-%M-%S)
