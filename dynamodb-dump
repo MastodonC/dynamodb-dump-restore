@@ -5,7 +5,8 @@
 # install jq from https://stedolan.github.io/jq/
 
 S3_FOLDER=${1:?Error: provide the S3 path as the first argument}
-TABLE_NAME_TEST=${2:?Error: provide at least one table name as the second argument}
+TOPIC=${2:?Error: provide the SNS ARN to alert to} # arn:aws:sns:eu-central-1:165664414043:witan-to-slack
+TABLE_NAME_TEST=${3:?Error: provide at least one table name as the second argument}
 NUM_ITEMS=25 # do not change
 
 type aws
@@ -25,33 +26,53 @@ current_dir=$(pwd)
 cd $(mktemp -d)
 
 dynamo_scan() {
-    result=""
+    local result=""
+    local error=0
 
     if [ -z "$2" ]
     then
         result=$(aws dynamodb scan --table-name $1 --max-items $NUM_ITEMS)
+        error=$?
     else
         result=$(aws dynamodb scan --table-name $1 --max-items $NUM_ITEMS --starting-token $2)
+        error=$?
     fi
 
     echo $result | jq -c '[{Item: .Items[]} | {PutRequest: .}]' | jq -c "{\"$var\": .}" > $var-$file_num
 
     next_token=$(echo $result | jq .NextToken)
+    echo "$error"
 }
 
-for var in "${@:2}"
+sns-alert() {
+    local table=$1
+    local error=$2
+    aws sns publish --topic $TOPIC --message "{\"AlarmName\": \"the backup of $table\", \"NewStateValue\": \"failed\", \"NewStateReason\": \"error code $error\"}"
+}
+
+for var in "${@:3}"
 do
     echo "Exporting table $var"
     file_num=0
     next_token=0
-    dynamo_scan $var
+    error=$(dynamo_scan $var)
+    echo "the error is $error"
 
-    while [ "$next_token" != "null" ]; do
+    while [[ "$next_token" != "null" && "$next_token" -ne 0 && "$error" -eq 0 ]]; do
         file_num=$((file_num+1))
-        dynamo_scan $var $next_token
+        error=$(dynamo_scan $var $next_token)
     done
+
+    if [ "$error" != 0 ]
+    then
+        sns-alert $var $error
+    fi
 done
 
 aws s3 sync . s3://$S3_FOLDER/$(date +%Y-%m-%d-%H-%M-%S)
+error=$?
+if [ "$error" -ne 0 ]; then
+    sns-alert S3 $error
+fi
 
 cd $current_dir
