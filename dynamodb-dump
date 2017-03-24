@@ -27,7 +27,6 @@ cd $(mktemp -d)
 
 dynamo_scan() {
     local result=""
-    local error=0
 
     if [ -z "$2" ]
     then
@@ -41,7 +40,6 @@ dynamo_scan() {
     echo $result | jq -c '[{Item: .Items[]} | {PutRequest: .}]' | jq -c "{\"$var\": .}" > $var-$file_num
 
     next_token=$(echo $result | jq .NextToken)
-    echo "$error"
 }
 
 sns-alert() {
@@ -55,12 +53,13 @@ do
     echo "Exporting table $var"
     file_num=0
     next_token=0
-    error=$(dynamo_scan $var)
+    error=0
+    dynamo_scan $var
     echo "the error is $error"
 
     while [[ "$next_token" != "null" && "$next_token" -ne 0 && "$error" -eq 0 ]]; do
         file_num=$((file_num+1))
-        error=$(dynamo_scan $var $next_token)
+        dynamo_scan $var $next_token
     done
 
     if [ "$error" != 0 ]
