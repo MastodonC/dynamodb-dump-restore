@@ -52,13 +52,13 @@ for var in "${@:3}"
 do
     echo "Exporting table $var"
     file_num=0
-    next_token=0
+    next_token="null"
     error=0
     dynamo_scan $var
-    echo "the error is $error"
 
-    while [[ "$next_token" != "null" && "$next_token" -ne 0 && "$error" -eq 0 ]]; do
+    while [[ "$next_token" != "null" && "$error" -eq 0 ]]; do
         file_num=$((file_num+1))
+        echo "Downloading segment $file_num"
         dynamo_scan $var $next_token
     done
 
@@ -67,6 +67,8 @@ do
         sns-alert $var $error
     fi
 done
+
+echo "Uploading backup"
 
 aws s3 sync . s3://$S3_FOLDER/$(date +%Y-%m-%d-%H-%M-%S)
 error=$?
