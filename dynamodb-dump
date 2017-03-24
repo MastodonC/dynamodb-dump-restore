@@ -58,6 +58,7 @@ do
 
     while [[ "$next_token" != "null" && "$error" -eq 0 ]]; do
         file_num=$((file_num+1))
+        sleep 1
         echo "Downloading segment $file_num"
         dynamo_scan $var $next_token
     done
