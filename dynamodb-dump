@@ -30,10 +30,10 @@ dynamo_scan() {
 
     if [ -z "$2" ]
     then
-        result=$(aws dynamodb scan --table-name $1 --max-items $NUM_ITEMS)
+        result=$(aws dynamodb scan --table-name $1 --max-items $NUM_ITEMS --page-size $NUM_ITEMS)
         error=$?
     else
-        result=$(aws dynamodb scan --table-name $1 --max-items $NUM_ITEMS --starting-token $2)
+        result=$(aws dynamodb scan --table-name $1 --max-items $NUM_ITEMS --page-size $NUM_ITEMS --starting-token $2)
         error=$?
     fi
 
