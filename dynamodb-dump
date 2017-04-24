@@ -42,26 +42,53 @@ dynamo_scan() {
     next_token=$(echo $result | jq .NextToken)
 }
 
+set_expected_page_count() {
+  item_count=$(aws dynamodb describe-table --table-name $1 | jq .Table.ItemCount)
+  
+  remainder=$(echo "$item_count%25" | bc -l)
+
+  expected_page_count=$(echo "scale=0; $item_count/$NUM_ITEMS" | bc -l)
+
+  if [ ! -z $remainder ]
+  then    
+    expected_page_count=$((expected_page_count+1))
+  fi
+}
+
 sns-alert() {
     local table=$1
-    local error=$2
-    aws sns publish --topic $TOPIC --message "{\"AlarmName\": \"the backup of $table\", \"NewStateValue\": \"failed\", \"NewStateReason\": \"error code $error\"}"
+    local error=${@:2}
+    result=$(aws sns publish --topic $TOPIC --message "{\"AlarmName\": \"the backup of $table\", \"NewStateValue\": \"failed\", \"NewStateReason\": \"error code $error\"}")
+    msg_id=$(echo $result | jq .MessageId)
+    echo "Error for table: $1. Msg_id: $msg_id. Msg: $error"
 }
 
 for var in "${@:3}"
 do
     echo "Exporting table $var"
-    file_num=0
+    file_num=1
     next_token="null"
     error=0
+    expected_page_count=0
+    
+    set_expected_page_count $var
+
+    echo "Expected page count: $expected_page_count"
+    
+    echo "Downloading segment: $file_num"
     dynamo_scan $var
 
     while [[ "$next_token" != "null" && "$error" -eq 0 ]]; do
         file_num=$((file_num+1))
         sleep 1
-        echo "Downloading segment $file_num, with error: $error, token: $next_token"
+        echo "Downloading segment: $file_num, with error: $error, token: $next_token"
         dynamo_scan $var $next_token
     done
+
+    if [ $expected_page_count != $file_num ]
+    then
+      error="Expected page count not reached. Expected $expected_page_count. Received: $file_num"
+    fi
 
     if [ "$error" != 0 ]
     then
