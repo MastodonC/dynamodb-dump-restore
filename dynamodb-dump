@@ -45,9 +45,9 @@ dynamo_scan() {
 set_expected_page_count() {
   item_count=$(aws dynamodb describe-table --table-name $1 | jq .Table.ItemCount)
   
-  remainder=$(echo "$item_count%25" | bc -l)
+  remainder=$(expr $item_count % 25)
 
-  expected_page_count=$(echo "scale=0; $item_count/$NUM_ITEMS" | bc -l)
+  expected_page_count=$(expr $item_count / $NUM_ITEMS)
 
   if [ ! -z $remainder ]
   then    
