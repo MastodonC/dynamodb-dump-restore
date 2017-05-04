@@ -45,7 +45,7 @@ dynamo_scan() {
 set_expected_page_count() {
   item_count=$(aws dynamodb describe-table --table-name $1 | jq .Table.ItemCount)
   
-  remainder=$(expr $item_count % 25)
+  remainder=$(expr $item_count % $NUM_ITEMS)
 
   expected_page_count=$(expr $item_count / $NUM_ITEMS)
 
@@ -85,7 +85,7 @@ do
         dynamo_scan $var $next_token
     done
 
-    if [ $expected_page_count != $file_num ]
+    if [ $expected_page_count -gt $file_num ]
     then
       error="Expected page count not reached. Expected $expected_page_count. Received: $file_num"
     fi
