@@ -98,7 +98,7 @@ done
 
 echo "Uploading backup"
 
-aws s3 sync . s3://$S3_FOLDER/$(date +%Y-%m-%d-%H-%M-%S)
+aws s3 sync --acl=bucket-owner-full-control . s3://$S3_FOLDER/$(date +%Y-%m-%d-%H-%M-%S)
 error=$?
 if [ "$error" -ne 0 ]; then
     sns-alert S3 $error
